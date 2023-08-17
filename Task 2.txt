@@ -1,0 +1,115 @@
+# Task 2
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import odeint
+from matplotlib.animation import FuncAnimation
+
+l1 = 2.5
+l2 = 2.5
+m1 = 1
+m2 = 1
+
+f = float(input("Enter the applied force on the wall:  "))
+nx = f*np.cos(np.pi/4)
+ny = f*np.sin(np.pi/4)
+tau1 = 0
+tau2 = 0
+
+wx1 = float(input("enter the x1 coordinate of the wall: "))
+wy1 = float(input("enter the y1 coordinate of the wall: "))
+wx2 = float(input("enter the x2 coordinate of the wall: "))
+wy2 = float(input("enter the y2 coordinate of the wall: "))
+
+fixed_line_x = [wx1 ,wx2]
+fixed_line_y = [wy1 ,wy2]
+
+x2 = (wx1+wx2)/2
+y2 = (wy1+wy2)/2
+
+def inversekinematics(x2, y2):
+    D = (x2**2 + y2**2 - l1**2 - l2**2) / (2 * l1 * l2)
+    theta2 = np.arctan2(np.sqrt(1 - D**2), D)
+    theta1 = np.arctan2(y2, x2) - np.arctan2(l2 * np.sin(theta2), l1 + l2 * np.cos(theta2))
+    # t1 = t1.append(theta1)
+    # t2 = t2.append(theta2)
+    return theta1,theta2
+
+def forwardkinematics(theta1, theta2):
+    x1 = l1 * np.cos(theta1)
+    y1 = l1 * np.sin(theta1)
+    # x2 = l1 * np.cos(theta1) + l2 * np.cos(theta1 + theta2)
+    # y2 = l1 * np.sin(theta1) + l2 * np.sin(theta1 + theta2)
+    # X1 = X1.append(x1)
+    # Y1 = Y1.append(y1)
+    return x1,y1
+def force_dynamics(theta1,theta2):
+    tau1 = ny*l1*np.cos(theta1) - nx*l1*np.sin(theta1)
+    tau2 = ny*l2*np.cos(theta2) - nx*l2*np.sin(theta2)
+    return tau1,tau2
+
+theta1,theta2 = inversekinematics(x2,y2)
+tau1,tau2 = force_dynamics(theta1,theta2)
+
+
+
+
+num_steps = 100
+t_max = 10.0
+
+# Create the figure and axis
+fig, ax = plt.subplots(figsize=(6, 6))
+ax.set_xlim(-3 * l1, 3 * l1)
+ax.set_ylim(-3 * l1, 3 * l1)
+
+# Create the manipulator links and wall line
+link1, = ax.plot([], [], 'o-', lw=2)
+link2, = ax.plot([], [], 'g-', lw=2)
+fixed_line, = ax.plot(fixed_line_x, fixed_line_y, 'b-', lw=2)
+torque1 = ax.text(0.2, 4.5, '', fontsize=10, color='black')
+torque2 = ax.text(0.2, 4.0, '', fontsize=10, color='black')
+
+# Initialize the animation
+def init():
+    link1.set_data([], [])
+    link2.set_data([], [])
+    torque1.set_text('')
+    torque2.set_text('')
+    return link1, link2, torque1,torque2
+
+# Update the animation frames
+def animate(i):
+    x2_anim = x2 * (i + 1) / num_steps  # Interpolate x2 for animation
+    y2_anim = y2 * (i + 1) / num_steps  # Interpolate y2 for animation
+
+    theta1, theta2 = inversekinematics(x2_anim, y2_anim)
+    x1, y1 = forwardkinematics(theta1, theta2)
+
+    link1.set_data([0, x1], [0, y1])
+    link2.set_data([x1, x2_anim], [y1, y2_anim])
+
+    tau1,tau2 = force_dynamics(theta1,theta2)
+    torque1.set_text(f'T1: {tau1:.2f} Nm')
+    torque2.set_text(f'T2: {tau2:.2f} Nm')
+
+
+# # Clear previous annotations and add new ones
+#     ax.text(0,0, f'τ1 = {tau1:.2f}', color='black', ha='center', va='center')
+#     ax.text(x1,y1, f'τ2 = {tau2:.2f}', color='black', ha='center', va='center')
+
+    return link1, link2, fixed_line,torque1,torque2
+
+# Create the animation
+ani = FuncAnimation(fig, animate, frames=num_steps, init_func=init, blit=True, interval=(t_max / num_steps) * 1000)
+
+# Set labels, title, and grid
+plt.xlabel('x')
+plt.ylabel('y')
+plt.title(f'2R Manipulator Animation T1 = {int(tau1)} and T2 = {int(tau2)}')
+plt.grid()
+
+# Display the animation
+plt.show()
+
+# Display the animation in the Jupyter Notebook
+from IPython.display import HTML
+HTML(ani.to_jshtml())

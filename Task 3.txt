@@ -1,0 +1,108 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import odeint
+from matplotlib.animation import FuncAnimation
+
+# Manipulator parameters
+l1 = 2.5
+l2 = 2.5
+m1 = 1
+m2 = 1
+
+# Spring parameters
+k = 10.0  # Spring constant
+c = 0   # Damping coefficient
+
+# Initial conditions
+theta1_initial = np.pi/4
+theta2_initial = np.pi / 4
+theta1_dot_initial = 0.0
+theta2_dot_initial = 0.0
+
+# Time values for simulation
+t_max = 10.0
+num_steps = 200
+t = np.linspace(0, t_max, num_steps)
+
+# System dynamics
+def system_dynamics(y, t):
+    theta1, theta2, theta1_dot, theta2_dot = y
+
+    D = (l1**2 + l2**2 - 2 * l1 * l2 * np.cos(theta2))**0.5
+    phi = np.arctan2(l2 * np.sin(theta2), l1 + l2 * np.cos(theta2))
+
+    theta1_ddot = (k * D * np.cos(phi - theta1) - c * theta1_dot) / (m1 * l1**2)
+    theta2_ddot = (-k * D * np.cos(phi - theta1) - c * theta2_dot) / (m2 * l2**2)
+
+    return [theta1_dot, theta2_dot, theta1_ddot, theta2_ddot]
+
+# Simulate the system
+initial_conditions = [theta1_initial, theta2_initial, theta1_dot_initial, theta2_dot_initial]
+solution = odeint(system_dynamics, initial_conditions, t)
+
+# Extract angles
+theta1_vals = solution[:, 0]
+theta2_vals = solution[:, 1]
+
+# Compute end effector y-coordinates
+end_effector_y = np.linspace(-4, 4, num_steps)  # Vertical straight line for the second link end effector
+
+# Create the figure and axis
+fig, ax = plt.subplots(figsize=(6, 6))
+ax.set_xlim(-5, 5)
+ax.set_ylim(-5, 5)
+
+# Initialize manipulator links and text labels
+link1, = ax.plot([], [], 'o-', lw=2)
+link2, = ax.plot([], [], 'g-', lw=2)
+end_effector, = ax.plot([], [], 'ro')
+text_angle1 = ax.text(0.2, 4.5, '', fontsize=10, color='black')
+text_angle2 = ax.text(0.2, 4.0, '', fontsize=10, color='black')
+
+# Initialize the animation
+def init():
+    link1.set_data([], [])
+    link2.set_data([], [])
+    end_effector.set_data([], [])
+    text_angle1.set_text('')
+    text_angle2.set_text('')
+    return link1, link2, end_effector, text_angle1, text_angle2
+
+# Update the animation frames
+def animate(i):
+    theta1 = theta1_vals[i]
+    theta2 = theta2_vals[i]
+
+    y = end_effector_y[i]
+
+    x1 = l1 * np.cos(theta1)
+    y1 = l1 * np.sin(theta1)
+    # x2 = x1 + l2 * np.cos(theta1 + theta2)
+    x2 = 0
+    y2 = y1 + l2 * np.sin(theta1 + theta2)
+
+    link1.set_data([0, x1], [0, y1])
+    link2.set_data([x1, x2], [y1, y2])
+    end_effector.set_data([x2], [y])
+
+    text_angle1.set_text(f'Theta1: {np.degrees(theta1):.2f} deg')
+    text_angle2.set_text(f'Theta2: {np.degrees(theta2):.2f} deg')
+
+    return link1, link2, end_effector, text_angle1, text_angle2
+
+# Create the animation
+ani = FuncAnimation(fig, animate, frames=num_steps, init_func=init, blit=True, interval=(t_max / num_steps) * 1000)
+
+# Set labels, title, and grid
+plt.xlabel('x')
+plt.ylabel('y')
+plt.title('2R Manipulator:Spring-like Behavior')
+plt.grid()
+
+# Display the animation
+plt.show()
+
+
+
+from IPython.display import HTML
+HTML(ani.to_jshtml())
